@@ -1,0 +1,669 @@
+const { fetchJson } = require('../utils/fetcher')
+
+/**
+ * Get Resi Information
+ *
+ * @param {string} ekspedisi - nama ekpedisi
+ * @param {string} resi - no / kode resi
+ */
+module.exports = cekResi = (ekspedisi, resi) => new Promise((resolve, reject) => {
+    fetchJson(`https://api.terhambar.com/resi?resi=${resi}&kurir=${ekspedisi}`)
+        .then((result) => {
+            if (result.status.code != 200 && result.status.description != 'OK') return resolve(result.status.description)
+                // eslint-disable-next-line camelcase
+            const { result: { summary, details, delivery_status, manifest } } = result
+            const manifestText = manifest.map(x => `⏰ ${x.manifest_date} ${x.manifest_time}\n └ ${x.manifest_description}`)
+            const resultText = `
+📦 Expedition Data
+├ ${summary.courier_name}
+├ Nomor: ${summary.waybill_number}
+├ Service: ${summary.service_code}
+└ Dikirim Pada: ${details.waybill_date}  ${details.waybill_time}
+      
+💁🏼‍♂️ Sender data
+├ Nama: ${details.shippper_name}
+└ Alamat: ${details.shipper_address1} ${details.shipper_city}
+      
+🎯 Recipient Data
+├ Nama: ${details.receiver_name}
+└ Alamat: ${details.receiver_address1} ${details.receiver_city}
+      
+📮 Delivery Status
+└ ${delivery_status.status}
+                 
+🚧 POD Details\n
+${manifestText.join('\n')}`
+            resolve(resultText)
+        }).catch((err) => {
+            console.error(err)
+            reject(err)
+        })
+})
+const { resolve, reject } = require('promise')
+const { fetchJson } = require('../utils/fetcher')
+
+/**
+ *
+ * @param  {String} query
+ *
+ */
+
+const fdci = async(wall) => new Promise((resolve, reject) => {
+    fetchJson('http://api.fdci.se/rep.php?gambar=' + wall)
+        .then((result) => {
+            const andwall = Math.floor(Math.random() * 41)
+            resolve(result[andwall])
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+/**
+ *
+ * @param  {String} 
+ * @param  {String}
+ * @param  {String}
+ * 
+ */
+
+const quote = async(quotes, author, type) => new Promise((resolve, reject) => {
+    const q = quotes.replace(/ /g, '%20').replace('\n', '%5Cn')
+    fetchJson('https://parade.com/937586/parade/life-quotes/' + q + '&author=' + author + '&tipe=' + type + '/')
+        .then((res) => {
+            resolve(res.result)
+        })
+        .catch((err) => {
+            reject(err)
+        })
+
+})
+
+/**
+ *
+ * @param  {String} query
+ *
+ */
+
+const sreddit = async(reddit) => new Promise((resolve, reject) => {
+    fetchJson('https://meme-api.herokuapp.com/gimme/' + reddit + '/')
+        .then((rest) => {
+            resolve(rest.url)
+        })
+        .catch((errr) => {
+            reject(errr)
+        })
+})
+
+module.exports = {
+    fdci,
+    quote,
+    sreddit
+}
+//exports.cekResi = require('./cekResi')
+exports.meme = require('./meme')
+exports.urlShortener = require('./shortener')
+    //exports.translate = require('./translate')
+    //exports.getLocationData = require('./location')
+exports.menuId = require('./menu')
+exports.images = require('./images')
+exports.resep = require('./resep')
+    //exports.rugapoi = require('./nekopoi')
+exports.rugaapi = require('./rugaApi')
+const { fetchJson } = require('../utils/fetcher')
+
+async function getZoneStatus(latitude, longitude, userId = '2d8ecc70-8310-11ea-84f8-13de98afc5a4') {
+    return new Promise((resolve, reject) => {
+        const options = {
+            method: 'POST',
+            headers: {
+                Authorization: 'Basic dGVsa29tOmRhMWMyNWQ4LTM3YzgtNDFiMS1hZmUyLTQyZGQ0ODI1YmZlYQ== ',
+                Accept: 'application/json'
+            },
+            body: JSON.stringify({
+                latitude: latitude.toString(),
+                longitude: longitude.toString(),
+                userId
+            })
+        }
+        fetchJson('https://api.pedulilindungi.id/zone/v1', options)
+            .then(json => {
+                const result = {
+                    kode: json.data.zone,
+                    status: '',
+                    optional: ''
+                }
+
+                switch (json.data.zone) {
+                    case 'red':
+                        result.status = 'You are in the Red Zone of the spread of COVID-19.'
+                        result.optional = 'The Red Zone is an area where there are already positive cases of COVID-19.'
+                        break
+                    case 'yellow':
+                        result.status = 'You are in the Yellow Zone of the spread of COVID-19.'
+                        result.optional = 'The Yellow Zone is an area where there are cases of ODP or PDP COVID-19.'
+                        break
+                    case 'green':
+                        result.status = 'You are in the Green Zone of the spread of COVID-19.'
+                        result.optional = 'The Green Zone is an area where there are no cases of PDP or Positive COVID-19.'
+                        break
+                }
+
+                if (!json.success && json.message == 'Anda berada di zona aman.') {
+                    result.kode = 'green'
+                    result.status = 'You are in the Green Zone of the spread of COVID-19.'
+                    result.optional = 'The Green Zone is an area where there are no cases of PDP or Positive COVID-19.'
+                }
+                resolve(result)
+            })
+            .catch((err) => reject(err))
+    })
+}
+
+async function getArea(latitude, longitude, size = 10) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            method: 'GET',
+            headers: {
+                Authorization: ' Basic dGVsa29tOmRhMWMyNWQ4LTM3YzgtNDFiMS1hZmUyLTQyZGQ0ODI1YmZlYQ== ',
+                'Content-Type': ' application/json '
+            }
+        }
+        fetchJson(`https://api.pedulilindungi.id/zone/v1/location/area?latitude=${latitude}&longitude=${longitude}&page=1&size=${size}`, options)
+            .then(json => {
+                if (json.success && json.code == 200) resolve(json)
+            })
+            .catch((err) => reject(err))
+    })
+};
+
+module.exports = getLocationData = async(latitude, longitude) => {
+    try {
+        const responses = await Promise.all([getZoneStatus(latitude, longitude), getArea(latitude, longitude)])
+        const result = {
+            kode: 200,
+            status: responses[0].status,
+            optional: responses[0].optional,
+            data: []
+        }
+        responses[1].data.map((x) => result.data.push(x))
+        return result
+    } catch (err) {
+        console.log(err)
+        return { kode: 0 }
+    }
+}
+const { fetchJson, fetchBase64 } = require('../utils/fetcher')
+const fs = require('fs-extra')
+const {
+    apiSS
+} = JSON.parse(fs.readFileSync('./settings/api.json'))
+
+/**
+ * Get meme from random subreddit
+ *
+ * @param  {String} _subreddit
+ * @return  {Promise} Return meme from dankmemes, wholesomeanimemes, wholesomememes, AdviceAnimals, MemeEconomy, memes, terriblefacebookmemes, teenagers, historymemes
+ */
+const random = async (_subreddit) => new Promise((resolve, reject) => {
+    const subreddits = ['dankmemes', 'wholesomeanimemes', 'wholesomememes', 'AdviceAnimals', 'MemeEconomy', 'memes', 'terriblefacebookmemes', 'teenagers', 'historymemes', 'okbuddyretard', 'nukedmemes']
+    const randSub = subreddits[Math.random() * subreddits.length | 0]
+    console.log('looking for memes on ' + randSub)
+    fetchJson('https://meme-api.herokuapp.com/gimme/' + randSub)
+        .then((result) => resolve(result.url))
+        .catch((err) => {
+            console.error(err)
+            reject(err)
+        })
+})
+
+/**
+ * create custom meme
+ * @param  {String} imageUrl
+ * @param  {String} topText
+ * @param  {String} bottomText
+ */
+const custom = async (imageUrl, top, bottom) => new Promise((resolve, reject) => {
+    topText = top.trim().replace(/\s/g, '_').replace(/\?/g, '~q').replace(/\%/g, '~p').replace(/\#/g, '~h').replace(/\//g, '~s')
+    bottomText = bottom.trim().replace(/\s/g, '_').replace(/\?/g, '~q').replace(/\%/g, '~p').replace(/\#/g, '~h').replace(/\//g, '~s')
+    fetchBase64(`https://api.memegen.link/images/custom/${topText}/${bottomText}.png?background=${imageUrl}`, 'image/png')
+        .then((result) => resolve(result))
+        .catch((err) => {
+            console.error(err)
+            reject(err)
+        })
+})
+
+const ss = async (url) => new Promise((resolve, reject) => {
+    fetchBase64(`https://api.apiflash.com/v1/urltoimage?access_key=${apiSS}&url=${url}`)
+    .then((res) => {
+        resolve(res)
+    })
+    .catch((err) => {
+        reject(err)
+    })
+})
+
+module.exports = {
+    random,
+    custom,
+    ss
+}
+
+const fs = require('fs-extra')
+const {
+    prefix
+} = JSON.parse(fs.readFileSync('./settings/setting.json'))
+
+/*
+
+Dimohon untuk tidak menghapus link github saya, butuh support dari kalian! makasih.
+
+*/
+
+exports.textTnC = () => {
+    return `
+Source code / This bot is an open-source program (free) written using Javascript, you can use, copy, modify, combine, publish, distribute, sub-license, and or sell copies without removing the main author of the source code / bot.
+
+By using this source code / bot, you agree to the following Terms and Conditions:
+- The source code / bot does not store your data on our servers.
+- Source code / bot is not responsible for your orders to this bot.
+- Source code / your bot can be seen at https://github.com/ArugaZ
+
+Instagram: https://instagram.com/ini.arga/
+
+Best regards, ArugaZ.`
+}
+
+/*
+
+Dimohon untuk tidak menghapus link github saya, butuh support dari kalian! makasih.
+
+*/
+
+exports.textMenu = (pushname) => {
+    return `
+Hey, ${pushname}! 👋️
+look at all of these cool stuff that you can do man!!✨
+
+Creator:
+ *➥ ${prefix}sticker*
+ *➥ ${prefix}stickergif*
+ *➥ ${prefix}stickergiphy*
+ *➥ ${prefix}meme*
+ *➥ ${prefix}quotemaker*
+
+Download:
+ *➥ ${prefix}instagram*
+
+
+other stuff in the Bot:
+ *➥ ${prefix}donate*
+ *➥ ${prefix}ownerbot*
+
+_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+Hope you have a great day!✨`
+}
+
+/*
+
+Dimohon untuk tidak menghapus link github saya, butuh support dari kalian! makasih.
+
+*/
+
+exports.textAdmin = () => {
+    return `
+⚠ [ *Owner Group Only* ] ⚠
+Here are the group owner features on this bot!
+➥ *${prefix}kickall*
+-owner is the group creator.
+
+⚠ [ *Admin Group Only* ] ⚠ 
+Following are the group admin features available on this bot!
+
+➥ *${prefix}add*
+➥ *${prefix}kick* @tag
+➥ *${prefix}promote* @tag
+➥ *${prefix}demote* @tag
+➥ *${prefix}tagall*
+➥ *${prefix}del*
+`
+}
+
+/*
+
+Dimohon untuk tidak menghapus link github saya, butuh support dari kalian! makasih.
+
+*/
+
+exports.textDonasi = () => {
+    return `
+Hi, thanks for using this bot, to support this bot you can help by donating by:
+
+➥ https://Paypal.me/SalemAbdullah1
+
+Pray that the bot project will continue to grow
+Pray for more creative ideas for the bot author
+
+The donation will be used for the development and operation of this bot.
+
+Thanks.`
+}
+
+//Download:
+//➥ *${prefix}instagram*
+//➥ *${prefix}ig*
+//➥ *${prefix}ytmp3*
+//➥ *${prefix}ytmp4*
+
+//Search Any:
+//➥ *${prefix}images*
+//➥ *${prefix}sreddit*
+//➥ *${prefix}resep*
+//➥ *${prefix}stalkig*
+//➥ *${prefix}wiki*
+//➥ *${prefix}cuaca*
+//➥ *${prefix}chord*
+//➥ *${prefix}ss*
+//➥ *${prefix}play*
+//➥ *${prefix}whatanime*
+
+//Random Images:
+//➥ *${prefix}anime*
+//➥ *${prefix}kpop*
+//➥ *${prefix}memes*
+
+//Owner Bot:
+//*${prefix}ban* - banned➥
+//*${prefix}bc* - promosi➥
+//*${prefix}leaveall* - exit all groups➥
+//*${prefix}clearall* - delete all chats➥
+/**
+ * @author Aruga <arugaastri@gmail.com>                                                                                                                                                                            <https://github.com/ArugaZ/whatsapp-bot>
+ * @license MIT
+ */
+
+"use strict"
+const axios = require('axios')
+const cheerio = require('cheerio')
+
+function getLatest() {
+    return new Promise(function (resolve, reject) {                                                                                                                                                               //<https://github.com/ArugaZ/whatsapp-bot>
+            const url = 'http://nekopoi.care'
+            axios.get(url)
+                .then(req => {
+                    const title = []
+                    const link = []
+                    const image = []
+                    const data = {}
+                    const soup = cheerio.load(req.data)
+                    soup('div.eropost').each(function (i, e) {
+                        soup(e).find('h2').each(function (j, s) {
+                            title.push(url + soup(s).find('a').text().trim())
+                            link.push(url + soup(s).find('a').attr('href'))
+                        })
+                        image.push(url + soup(e).find('img').attr('src'))
+                    })
+                    if (data == undefined) {
+                        reject('No Result:(')
+                    } else {
+                        let i = Math.floor(Math.random() * title.length)
+                        let hehe = {
+                            "title": title[i],
+                            "image": image[i],
+                            "link": link[i]
+                        }
+                        resolve(hehe)
+                    }
+                })
+        })
+}
+
+/**
+ * @author Aruga <arugaastri@gmail.com>                                                                                                                                                                            <https://github.com/ArugaZ/whatsapp-bot>
+ * @license MIT
+ */
+
+function getVideo(url) {
+    return new Promise(function (resolve, reject) {                                                                                                                                                               //<https://github.com/ArugaZ/whatsapp-bot>
+            axios.get(url)
+                .then(req => {
+                    try {
+                        const links = []
+                        let soup = cheerio.load(req.data)
+                        let title = soup("title").text()
+                        soup('div.liner').each(function (i, e) {
+                            soup(e).find('div.listlink').each(function (j, s) {
+                                soup(s).find('a').each(function (p, q) {
+                                    links.push(soup(q).attr('href'))
+                                })
+                            })
+                        })
+                        const data = {
+                            "title": title,
+                            "links": links
+                        }
+                        resolve(data)
+                    } catch (err) {
+                        reject('Error : ' + err)
+                    }
+                })
+        })
+}
+
+module.exports = {
+    getLatest,
+    getVideo
+}
+
+const axios = require('axios')
+const { resolve, reject } = require('promise')
+
+const resep = async (menu) => new Promise((resolve, reject) => {
+    axios.get('https://masak-apa.tomorisakura.vercel.app/api/search/?q=' + menu)
+    .then(async (res) => {
+        const { results } = await res.data
+        const random = Math.floor(Math.random() * 16)
+        axios.get('https://masak-apa.tomorisakura.vercel.app/api/recipe/' + results[random].key)
+        .then(async (result) => {
+            const { results } = await result.data
+            const bahannya = await `${results.ingredient}`
+            const bahan = bahannya.replace(/,/g,'\n')
+            const tutornya = await `${results.step}`
+            const tutornih = tutornya.replace(/,/g,'\n')
+            const tutor = tutornih.replace(/.,/g,'\n')
+            const hasil = `*Judul:* ${results.title}\n*Penulis:* ${results.author.user}\n*Rilis:* ${results.author.datePublished}\n*Level:* ${results.dificulty}\n*Waktu:* ${results.times}\n*Porsi:* ${results.servings}\n\n*Bahan-bahan:*\n${bahan}\n\n*Step-by-step:*\n${tutor}`
+            resolve(hasil)
+        })
+    })
+    .catch((err) => {
+        console.log(err)
+        reject(err)
+    })
+})
+
+module.exports = {
+    resep
+}
+
+const axios = require('axios')
+const link = 'https://arugaz.herokuapp.com'
+const fileyt = 'https://raw.githubusercontent.com/ArugaZ/scraper-results/main/20201111_230923.jpg'
+const eroryt = 'https://raw.githubusercontent.com/ArugaZ/scraper-results/main/20201111_234624.jpg'
+
+const insta = async(url) => new Promise((resolve, reject) => {
+    axios.get(`${link}/api/ig?url=${url}`)
+        .then((res) => {
+            resolve(`${res.data.result}`)
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+const ytmp3 = async(url) => new Promise((resolve, reject) => {
+    axios.get(`${link}/api/yta?url=${url}`)
+        .then((res) => {
+            if (res.data.error) resolve({ status: 'error', link: eroryt, judul: res.data.error })
+            if (Number(res.data.filesize.split(' MB')[0]) >= 10.00) resolve({ status: 'filesize', link: fileyt, judul: '[❗] An error has occurred. The audio file may be too large' })
+            resolve({ status: 'success', link: res.data.result, size: res.data.filesize, thumb: res.data.thumb, judul: res.data.title })
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+const ytmp4 = async(url) => new Promise((resolve, reject) => {
+    axios.get(`${link}/api/ytv?url=${url}`)
+        .then((res) => {
+            if (res.data.error) resolve({ status: 'error', link: eroryt, judul: res.data.error })
+            if (Number(res.data.filesize.split(' MB')[0]) >= 10.00) resolve({ status: 'filesize', link: fileyt, judul: '[❗] An error has occurred. The audio file may be too large' })
+            resolve({ status: 'success', link: res.data.result, size: res.data.filesize, thumb: res.data.thumb, judul: res.data.title })
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+const stalkig = async(url) => new Promise((resolve, reject) => {
+    axios.get(`${link}/api/stalk?username=${url}`)
+        .then((res) => {
+            if (res.data.error) resolve(res.data.error)
+            const text = `User: ${res.data.Username}\nName: ${res.data.Name}\nBio: ${res.data.Biodata}\nFollower: ${res.data.Jumlah_Followers}\nFollowing: ${res.data.Jumlah_Following}\nPost: ${res.data.Jumlah_Post}`
+            resolve(text)
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+const stalkigpict = async(url) => new Promise((resolve, reject) => {
+    axios.get(`${link}/api/stalk?username=${url}`)
+        .then((res) => {
+            if (res.data.error) resolve('https://c4.wallpaperflare.com/wallpaper/976/117/318/anime-girls-404-not-found-glowing-eyes-girls-frontline-wallpaper-preview.jpg')
+            resolve(`${res.data.Profile_pic}`)
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+const quote = async() => new Promise((resolve, reject) => {
+    axios.get(`${link}/api/randomquotes`)
+        .then((res) => {
+            const text = `Author: ${res.data.author}\n\nQuote: ${res.data.quotes}`
+            resolve(text)
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+const wiki = async(url) => new Promise((resolve, reject) => {
+    axios.get(`${link}/api/wiki?q=${url}`)
+        .then((res) => {
+            resolve(res.data.result)
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+const daerah = async() => new Promise((resolve, reject) => {
+    axios.get(`${link}/daerah`)
+        .then((res) => {
+            resolve(res.data.result)
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+const jadwaldaerah = async(url) => new Promise((resolve, reject) => {
+    axios.get(`https://api.haipbis.xyz/jadwalsholat?daerah=${url}`)
+        .then((res) => {
+            if (res.data.error) resolve(res.data.error)
+            const text = `Jadwal Sholat ${url}\n\nImsyak: ${res.data.Imsyak}\nSubuh: ${res.data.Subuh}\nDzuhur: ${res.data.Dzuhur}\nAshar: ${res.data.Ashar}\nMaghrib: ${res.data.Maghrib}\nIsya: ${res.data.Isya}`
+            resolve(text)
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+const cuaca = async(url) => new Promise((resolve, reject) => {
+    axios.get(`https://rest.farzain.com/api/cuaca.php?id=${url}&apikey=O8mUD3YrHIy9KM1fMRjamw8eg`)
+        .then((res) => {
+            if (res.data.respon.cuaca == null) resolve('Sorry your area is not available')
+            const text = `Cuaca di: ${res.data.respon.tempat}\n\nCuaca: ${res.data.respon.cuaca}\nAngin: ${res.data.respon.angin}\nDesk: ${res.data.respon.deskripsi}\nKelembapan: ${res.data.respon.kelembapan}\nSuhu: ${res.data.respon.suhu}\nUdara: ${res.data.respon.udara}`
+            resolve(text)
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+const chord = async(url) => new Promise((resolve, reject) => {
+    axios.get(`${link}/api/chord?q=${url}`)
+        .then((res) => {
+            if (res.data.error) resolve(res.data.error)
+            resolve(res.data.result)
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+const tulis = async(teks) => new Promise((resolve, reject) => {
+    axios.get(`${link}/nulis?text=${encodeURIComponent(teks)}`)
+        .then((res) => {
+            resolve(`${res.data.result}`)
+        })
+        .catch((err) => {
+            reject(err)
+        })
+})
+
+module.exports = {
+    insta,
+    ytmp3,
+    ytmp4,
+    stalkig,
+    stalkigpict,
+    quote,
+    wiki,
+    daerah,
+    jadwaldaerah,
+    cuaca,
+    chord,
+    tulis
+}
+const { fetchText } = require('../utils/fetcher')
+
+/**
+ * Create shorturl
+ *
+ * @param  {String} url
+ */
+module.exports = shortener = (url) => new Promise((resolve, reject) => {
+    console.log('Creating short url...')
+    fetchText(`https://tinyurl.com/api-create.php?url=${url}`)
+        .then((text) => resolve(text))
+        .catch((err) => reject(err))
+})
+
+const { default: translate } = require('google-translate-open-api')
+
+/**
+ * Translate Text
+ * @param  {String} text
+ * @param  {String} lang
+ */
+
+module.exports = doing = (text, lang) => new Promise((resolve, reject) => {
+    console.log(`Translate text to ${lang}...`)
+    translate(text, { tld: 'cn', to: lang })
+        .then((text) => resolve(text.data[0]))
+        .catch((err) => reject(err))
+})
